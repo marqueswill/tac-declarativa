@@ -11,10 +11,10 @@ getName :: Function -> Ident
 getName (Fun name _ _) = name
 
 getParams :: Function -> [Ident]
-getParams = (Fun _ params _) = params
+getParams (Fun _ params _) = params
 
 getExp :: Function -> Exp
-getExp = (Fun _ _ exp) = exp
+getExp (Fun _ _ exp) = exp
 
 --
 {- TODO: *Não* altere a definição de "executeP" abaixo.
@@ -61,13 +61,22 @@ eval context x = case x of
    se o valor for diferente de 0, retorna-se o resultado da avaliação da expressão expT;
    caso contrário, retorna-se o resultado da avaliação da expressão expE.
    @dica: estude a semântica do "SIf" na LI2 e saiba explicar a diferença -}
-    EIf exp expT expE -> undefined
+    EIf exp expT expE -> if (i (eval context exp) /= 0)
+                            then eval context expT
+                            else eval context expE
+
 {- TODO: abaixo, troque "undefined" por chamadas das funcoes definidas no inicio do arquivo
     aplicadas ao argumento "funDef"  @dica: não altere o resto, mas saiba explicar o funcionamento -}
-    ECall id lexp   -> eval (paramBindings ++ contextFunctions) undefined
+    ECall id lexp   -> eval (paramBindings ++ contextFunctions) (getExp funDef)
                           where (ValorFun funDef) = lookup context id
-                                parameters =  undefined
-                                paramBindings = zip parameters (map (eval context) lexp)
+                                -- parametros da função chamada
+                                parameters_ids =  getParams funDef
+
+                                -- Avaliação das subexpressões presentes nos parâmetros da função
+                                -- e associação do resultado destas com seus respesctivos ids
+                                paramBindings = zip parameters_ids (map (eval context) lexp)
+
+                                -- Contexto com apenas as definições das funções para otimizar e remover possíveis conflitos
                                 contextFunctions = filter (\(i,v) -> case v of
                                                                          ValorFun _ -> True
                                                                          _ -> False

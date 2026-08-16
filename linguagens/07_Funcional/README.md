@@ -4,11 +4,44 @@ Estrutura de desenvolvimento, compilação e evolução de um interpretador em H
 
 ---
 
+---
+
 ## Pré-requisitos
 
-- **Haskell (GHC)**: [haskell.org/platform](https://www.haskell.org/platform/)
-- **BNF Converter (BNFC)** _(para recriação de sintaxe)_: [bnfc.digitalgrammars.com](http://bnfc.digitalgrammars.com/)
-- **Make** _(utilitário de compilação)_: [steve.org.uk/Software/make](http://www.steve.org.uk/Software/make/)
+- **Dependências de Sistema**: Requeridas para a compilação do compilador e das bibliotecas (inclui o `make` e a biblioteca GMP).
+
+```bash
+sudo apt update
+sudo apt install build-essential curl libgmp-dev
+```
+
+- **GHCup** _(Gerenciador de versões do GHC e Cabal)_:
+  Instale executando o script oficial:
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | sh
+```
+
+Siga as instruções do instalador no terminal e reinicie sua sessão (ou execute `source ~/.bashrc` / `source ~/.zshrc`) para atualizar a variável de ambiente `PATH`.
+
+- **Happy e Alex** _(Geradores de parser e lexer para Haskell)_:
+  Com o GHC e Cabal instalados via GHCup, execute:
+
+```bash
+cabal update
+cabal install happy alex
+
+```
+
+- **BNF Converter (BNFC)** _(Para recriação de sintaxe)_:
+
+```bash
+cabal install BNFC
+
+```
+
+- **Make** _(Utilitário de compilação)_:
+  Já incluído na instalação do pacote `build-essential` no primeiro passo.
 
 ---
 
