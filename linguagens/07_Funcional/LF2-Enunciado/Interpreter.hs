@@ -1,21 +1,26 @@
 module Interpreter where
 
 import AbsLF
-import Tests
+-- import Tests
 import Prelude hiding (lookup)
 
 {- TODO: Estude a definição do tipo Function no arquivo AbsLF.hs e complete as definicoes
     de "getParams" e "getExp" abaixo. Note "getName" já é fornecida.
 -}
-getName :: Function -> Ident
-getName (Fun name _ _) = name
+getType :: Function -> Type
+getType (Fun tp _ _ _) = tp
 
-getParams :: Function -> [Ident]
-getParams (Fun _ params _) = params
+getName :: Function -> Ident
+getName (Fun _ name _ _) = name
+
+getParams :: Function -> [Decl]
+getParams (Fun _ _ params _) = params
 
 getExp :: Function -> Exp
-getExp (Fun _ _ exp) = exp
+getExp (Fun _ _ _ exp) = exp
 
+getDecl :: Function -> Decl
+getDecl (Fun tp name _ _) = Dec tp name
 --
 {- TODO: *Não* altere a definição de "executeP" abaixo.
          *Entenda* a razão da mudança em relação à definição na LI2.
@@ -34,7 +39,7 @@ mais outras declarações, basta avaliar a expressão do main para que o eval av
 executeP :: Program -> Valor
 executeP (Prog fs) =  eval initialContext (expMain fs)
     where
-        initialContext = (updatecF [] fs)
+        initialContext = (bindFuntions [] fs)
         expMain (f:xs)
             | (getName f == (Ident "main")) =  getExp f
             | otherwise = expMain xs
@@ -54,7 +59,7 @@ eval context x = case x of
     ETrue          -> ValorBool True
     EFalse         -> ValorBool False
     EInt n         -> ValorInt n
-    EVar id        -> lookup context  id
+    EVar id        -> lookup context id
 {- TODO: remova "undefined" e implemente a avaliação do "EIf" abaixo. A primeira expressao ("exp") é a condição,
    "expT" é a expressão do "then" e "expE" é a expressão do "else". A semântica (comportamento)
    pretendido é o seguinte: compare o valor resultante da avaliação de "exp" com 0.
@@ -85,29 +90,10 @@ eval context x = case x of
 
 
 
--- *** @dica: nao altere o todo o codigo abaixo a partir daqui
-
-{-
-data Valor = ValorInt Integer |
-             ValorStr String
-i (ValorInt vi) = vi
-s (ValorStr vs) = vs
--}
-
-data Valor = ValorInt {
-               i :: Integer
-             }
-            |
-             ValorFun {
-               f :: Function
-             }
-            |
-             ValorStr {
-               s :: String
-             }
-            | ValorBool {
-               b :: Bool
-             }
+data Valor = ValorInt {i :: Integer}
+            | ValorFun {f :: Function}
+            | ValorStr {s :: String}
+            | ValorBool {b :: Bool}
 
 instance Show Valor where
   show (ValorBool b) = show b
@@ -116,20 +102,22 @@ instance Show Valor where
   show (ValorFun f) = show f
 --(\(Ident x) -> x) nf
 
-type RContext = [(Ident,Valor)]
+{-  TODO: atualizar o contexto para um contexto de tipos usando o Decl -}
+
+type RContext = [(Decl, Valor)]
 
 lookup :: RContext -> Ident -> Valor
-lookup ((i,v):cs) s
+lookup (((Dec t i),v):cs) s
    | i == s = v
    | otherwise = lookup cs s
 
-update :: RContext -> Ident -> Valor -> RContext
-update [] s v = [(s,v)]
-update ((i,v):cs) s nv
-  | i == s = (i,nv):cs
-  | otherwise = (i,v) : update cs s nv
+bind :: RContext -> Decl -> Valor -> RContext
+bind [] s v = [(s,v)]
+bind ((d,v):cs) s nv
+  | d == s = (d,nv):cs
+  | otherwise = (d,v) : bind cs s nv
 
 
-updatecF :: RContext -> [Function] -> RContext
-updatecF c [] = c
-updatecF c (f:fs) = updatecF (update c (getName f) (ValorFun f)) fs
+bindFuntions :: RContext -> [Function] -> RContext
+bindFuntions c [] = c
+bindFuntions c (f:fs) = bindFuntions (bind c (getDecl f) (ValorFun f)) fs
