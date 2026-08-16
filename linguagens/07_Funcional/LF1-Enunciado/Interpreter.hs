@@ -11,22 +11,33 @@ getName :: Function -> Ident
 getName (Fun name _ _) = name
 
 getParams :: Function -> [Ident]
-getParams = undefined
+getParams = (Fun _ params _) = params
 
 getExp :: Function -> Exp
-getExp = undefined
+getExp = (Fun _ _ exp) = exp
 
-
+--
 {- TODO: *Não* altere a definição de "executeP" abaixo.
          *Entenda* a razão da mudança em relação à definição na LI2.
          Garanta que saiba explicar verbalmente isso.
 -}
 
+{-
+O executP inicializa o contexto do programa mapeando cada função à sua definição e em seguida faz o eval do
+expMain, que é a função principal do programa usando o contexto inicializado.
+
+Na linguagem imperativa, uma função é definida por uma declaração (statement), já na funcional toda função é definida
+por uma expressão. Isso significa que, no caso da LF1, não há necessidade de executar um statement para obter uma expressão ou
+mais outras declarações, basta avaliar a expressão do main para que o eval avalie as subexpressões contidadas nele recursivamente.
+-}
+
 executeP :: Program -> Valor
-executeP (Prog fs) =  eval (updatecF [] fs) (expMain fs)
-    where expMain (f:xs)
-              | (getName f == (Ident "main")) =  getExp f
-              | otherwise = expMain xs
+executeP (Prog fs) =  eval initialContext (expMain fs)
+    where
+        initialContext = (updatecF [] fs)
+        expMain (f:xs)
+            | (getName f == (Ident "main")) =  getExp f
+            | otherwise = expMain xs
 
 
 eval :: RContext -> Exp -> Valor
