@@ -1,0 +1,21 @@
+
+int main () {
+   fat (skinny(3, 3)-1)
+}
+
+int fat (int n) {
+ if (n)
+    then n * fat (n-1)
+    else 1
+
+}
+
+int skinny (int n, int m) {
+ if (n)
+
+    then n * skinny (n-1, m-1)
+
+    else 1
+}
+
+
