@@ -1,0 +1,18 @@
+-- Products, with the postfix projections t.fst and t.snd.
+--
+--   Pairs nest, and projections chain left to right: deep.snd.fst.
+--   Projection binds tighter than application, so box.fst box.snd is
+--   (box.fst) (box.snd).
+--   The first component of box is a lambda: the comma of the pair ends the
+--   lambda body.
+--   * binds tighter than ->, so curry takes an (Nat * Nat) -> Nat.
+
+let swap    = \p:Nat * Nat, (p.snd, p.fst) in
+let mulPair = \p:Nat * Nat, p.fst * p.snd in
+let deep    = ((1, 2), (3, 4)) in
+let box     = (\n:Nat, succ n, 41) in
+let curry   = \f:Nat * Nat -> Nat, \a:Nat, \b:Nat, f (a, b) in
+((swap (3, 4), mulPair (6, 7)),
+ (deep.snd.fst, (box.fst box.snd, curry mulPair 5 5)))
+
+-- (((4, 3), 42), (3, (42, 25)))

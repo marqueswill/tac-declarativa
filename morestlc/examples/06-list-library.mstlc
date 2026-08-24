@@ -1,0 +1,18 @@
+-- A small list library.  Because the whole file is one term, each function
+-- is defined exactly once and they are all in scope for the result.
+
+let plus   = fix (\f:Nat -> Nat -> Nat, \m:Nat, \n:Nat,
+                    if0 m then n else succ (f (pred m) n)) in
+let length = fix (\f:List Nat -> Nat, \l:List Nat,
+                    case l of | nil => 0 | h :: t => succ (f t)) in
+let sum    = fix (\f:List Nat -> Nat, \l:List Nat,
+                    case l of | nil => 0 | h :: t => plus h (f t)) in
+let map    = \g:Nat -> Nat,
+               fix (\f:List Nat -> List Nat, \l:List Nat,
+                      case l of | nil => nil Nat | h :: t => g h :: f t) in
+let append = fix (\f:List Nat -> List Nat -> List Nat, \l:List Nat, \r:List Nat,
+                    case l of | nil => r | h :: t => h :: f t r) in
+let xs     = 1 :: 2 :: 3 :: nil Nat in
+((length xs, sum xs), (map (\n:Nat, n * n) xs, append xs (4 :: nil Nat)))
+
+-- ((3, 6), (1 :: 4 :: 9 :: nil Nat, 1 :: 2 :: 3 :: 4 :: nil Nat))

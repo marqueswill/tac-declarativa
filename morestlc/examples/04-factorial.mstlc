@@ -1,0 +1,19 @@
+-- let is not recursive, so a recursive function is written with fix,
+-- exactly as in MoreStlc.v.
+--
+-- This is the factorial of the book, transcribed:
+--    fix (\f:Nat->Nat, \x:Nat, if x=0 then 1 else x * (f (pred x)))
+-- with the zero test written if0, since there are no booleans.
+--
+-- fix binds at the application level, so `fix F (pred n)` is `(fix F) (pred n)`,
+-- which is how the book uses it when it unfolds the factorial by hand.
+
+let fact  = fix (\f:Nat -> Nat, \n:Nat,
+                   if0 n then 1 else n * (f (pred n))) in
+let plus  = fix (\f:Nat -> Nat -> Nat, \m:Nat, \n:Nat,
+                   if0 m then n else succ (f (pred m) n)) in
+let times = \k:Nat, fix (\f:Nat -> Nat, \n:Nat,
+                           if0 n then 0 else plus k (f (pred n))) in
+((fact 5, plus 3 4), times 6 7)
+
+-- ((120, 7), 42)

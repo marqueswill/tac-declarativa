@@ -1,0 +1,2 @@
+-- the scrutinee of if0 must be a Nat
+if0 (nil Nat) then 1 else 2

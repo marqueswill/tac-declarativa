@@ -1,0 +1,2 @@
+-- T_Fix needs t1 : T1 -> T1, and this one is Nat -> Nat * Nat
+fix (\f:Nat, (f, f))

@@ -1,0 +1,9 @@
+-- NOT a type error: this term is perfectly well typed at Nat, and it loops
+-- forever.  MoreSTLC with fix is Turing complete, so a type checker cannot
+-- rule this out -- type safety says a well typed term never gets STUCK, not
+-- that it terminates.
+--
+-- Run it only if you want to watch your evaluator spin (Ctrl-C to stop).
+-- It type checks instantly with:
+--   morestlc --type-only examples/bad/diverges.mstlc
+fix (\x:Nat, x)

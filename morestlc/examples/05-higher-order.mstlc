@@ -1,0 +1,11 @@
+-- Functions are first class: arguments, results, and components of pairs.
+-- pick chooses a function with if0 and then applies it.
+
+let inc     = \n:Nat, succ n in
+let compose = \f:Nat -> Nat, \g:Nat -> Nat, \x:Nat, f (g x) in
+let twice   = \f:Nat -> Nat, \x:Nat, f (f x) in
+let pick    = \n:Nat, if0 n then inc else \m:Nat, pred m in
+((compose inc inc 0, twice inc 5),
+ (twice (twice inc) 0, (pick 0 10, pick 1 10)))
+
+-- ((2, 7), (4, (11, 9)))

@@ -1,0 +1,2 @@
+-- the scrutinee of a list case must be a list
+case 3 of | nil => 0 | h :: t => h

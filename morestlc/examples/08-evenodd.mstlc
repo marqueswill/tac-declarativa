@@ -1,0 +1,28 @@
+-- The last example of the fix section of MoreStlc.v, transcribed.
+--
+-- It defines a PAIR of mutually recursive functions with a single fix,
+-- illustrating that the type T1 in rule T_Fix need not be a function type.
+-- The book writes it as:
+--
+--   let evenodd =
+--        fix
+--          (\eo: ((Nat -> Nat) * (Nat -> Nat)),
+--             (\n:Nat, if0 n then 1 else (eo.snd (pred n)),
+--              \n:Nat, if0 n then 0 else (eo.fst (pred n)))) in
+--   let even = evenodd.fst in
+--   let odd  = evenodd.snd in
+--   (even 3, even 4)
+--
+-- Here it is with the redundant parentheses dropped, since projection binds
+-- tighter than application in this grammar.  Note that the book writes it as
+-- a single closed term too -- which is exactly what a source file is here.
+
+let evenodd =
+      fix (\eo:(Nat -> Nat) * (Nat -> Nat),
+             (\n:Nat, if0 n then 1 else eo.snd (pred n),
+              \n:Nat, if0 n then 0 else eo.fst (pred n))) in
+let even = evenodd.fst in
+let odd  = evenodd.snd in
+(even 3, even 4)
+
+-- (0, 1)

@@ -1,0 +1,2 @@
+-- the argument does not have the type the function expects
+(\x:Nat, x) (nil Nat)

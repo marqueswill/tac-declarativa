@@ -1,0 +1,13 @@
+-- Lists: nil T (no brackets), cons (::) and case with a leading bar.
+-- :: is right associative, so xs below is 1 :: (2 :: (3 :: nil Nat)).
+-- case has exactly two branches, as in MoreStlc.v.
+
+let head0 = \l:List Nat, case l of | nil => 0 | h :: t => h in
+let xs    = 1 :: 2 :: 3 :: nil Nat in
+let grid  = (1 :: nil Nat) :: (2 :: nil Nat) :: nil (List Nat) in
+let pairs = (1, 2) :: (3, 4) :: nil (Nat * Nat) in
+((xs, (head0 xs, head0 (nil Nat))), (grid, pairs))
+
+-- ((1 :: 2 :: 3 :: nil Nat, (1, 0)),
+--  ((1 :: nil Nat) :: (2 :: nil Nat) :: nil List Nat,
+--   (1, 2) :: (3, 4) :: nil (Nat * Nat)))

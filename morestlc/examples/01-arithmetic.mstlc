@@ -1,0 +1,20 @@
+-- Numbers are the only base type: MoreStlc.v has no booleans.
+--
+-- A source file holds exactly one term, because in the book a term IS the
+-- whole structure of a program.  Several results are therefore reported
+-- together in a tuple -- which is how the book reports two results as well,
+-- in the (even 3, even 4) at the end of its evenodd example.
+--
+--   succ and pred take a single *atom*, so nesting needs parentheses.
+--   Multiplication is infix and right associative, as in the Notation.
+--   if0 combines the zero test and the conditional; with no booleans, a
+--   predicate has to answer with a number.
+
+let isZero  = \n:Nat, if0 n then 1 else 0 in
+let tenfold = \n:Nat, if0 n then 0 else n * 10 in
+((succ (succ 0), pred 0),
+ ((6 * 7, 2 * 3 * 4),
+  ((isZero 0, isZero 3),
+   (tenfold 5, let x = 3 in let y = 4 in x * y))))
+
+-- ((2, 0), ((42, 24), ((1, 0), (50, 12))))

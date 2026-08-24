@@ -1,0 +1,97 @@
+-- ---------------------------------------------------------------------------
+-- MoreSTLC : the simply typed lambda calculus with
+--   numbers, let, products, lists and fix
+--
+-- Follows the course file MoreStlc.v (Software Foundations, PLF, chapter
+-- "MoreStlc").  That development has NO booleans: a single if0 form combines
+-- the zero test and the conditional.  Sums, Unit, records and variants are
+-- left out here.
+--
+-- The concrete syntax below mirrors the Coq "Notation" declarations of
+-- MoreStlc.v:
+--
+--   \x:T, t          abstraction          (a comma, not a dot)
+--   t1 t2            application
+--   succ t  pred t   successor, predecessor
+--   t1 * t2          multiplication       (infix, as in the Notation)
+--   if0 t1 then t2 else t3
+--   nil T            the empty list       (no brackets around T)
+--   t1 :: t2         cons
+--   case t1 of | nil => t2 | x :: y => t3
+--   (t1, t2)         pair
+--   t.fst  t.snd     projections          (postfix)
+--   let x = t1 in t2
+--   fix t
+--
+-- The grammar is stratified into precedence levels so that it is
+-- unambiguous: BNFC/happy report 0 conflicts.
+-- ---------------------------------------------------------------------------
+
+comment "--" ;
+comment "(*" "*)" ;
+
+-- ---------------------------------------------------------------------------
+-- There are exactly two categories, mirroring the two Inductives of
+-- MoreStlc.v one for one, constructor by constructor:
+--
+--     Type   <->   Inductive ty     (lines 961-967)
+--     Term   <->   Inductive tm     (lines 969-1003)
+--
+-- Term is the ONLY entry point.  A source file is one term, because in the
+-- book `tm` IS the whole structure of a program, and names are introduced
+-- inside a term with `let ... in ...`.  Type is never parsed on its own: it
+-- occurs only inside a term, in the annotation of an abstraction and in the
+-- element type of nil.
+-- ---------------------------------------------------------------------------
+
+entrypoints Term ;
+
+-- ---------------------------------------------------------------------------
+-- Types  --  Inductive ty
+--
+--   level 0   T -> T      right associative
+--   level 1   T * T       left associative, binds tighter than ->
+--   level 2   Nat   List T   ( T )
+-- ---------------------------------------------------------------------------
+
+TyArrow. Type  ::= Type1 "->" Type ;                   -- Ty_Arrow
+TyProd.  Type1 ::= Type1 "*" Type2 ;                   -- Ty_Prod
+TyList.  Type2 ::= "List" Type2 ;                      -- Ty_List
+TyNat.   Type2 ::= "Nat" ;                             -- Ty_Nat
+
+coercions Type 2 ;
+
+-- ---------------------------------------------------------------------------
+-- Terms  --  Inductive tm
+--
+--   level 0   \x:T, t    let    if0    case           (extend to the right)
+--   level 1   t :: t                                  (cons, right associative)
+--   level 2   t * t                                   (mult, right associative)
+--   level 3   t t    succ t    pred t    fix t        (application level)
+--   level 4   t.fst   t.snd                           (postfix projection)
+--   level 5   x   0   nil T   (t, t)   ( t )          (atoms)
+-- ---------------------------------------------------------------------------
+
+TmAbs.   Term  ::= "\\" Ident ":" Type "," Term ;      -- tm_abs
+TmLet.   Term  ::= "let" Ident "=" Term "in" Term ;    -- tm_let
+TmIf0.   Term  ::= "if0" Term "then" Term "else" Term ;  -- tm_if0
+TmLcase. Term  ::= "case" Term "of" "|" "nil" "=>" Term "|" Ident "::" Ident "=>" Term ;  -- tm_lcase
+
+TmCons.  Term1 ::= Term2 "::" Term1 ;                  -- tm_cons
+
+TmMult.  Term2 ::= Term3 "*" Term2 ;                   -- tm_mult
+
+TmApp.   Term3 ::= Term3 Term4 ;                       -- tm_app
+TmSucc.  Term3 ::= "succ" Term4 ;                      -- tm_succ
+TmPred.  Term3 ::= "pred" Term4 ;                      -- tm_pred
+TmFix.   Term3 ::= "fix" Term4 ;                       -- tm_fix
+
+TmFst.   Term4 ::= Term4 ".fst" ;                      -- tm_fst
+TmSnd.   Term4 ::= Term4 ".snd" ;                      -- tm_snd
+
+TmVar.   Term5 ::= Ident ;                             -- tm_var
+TmConst. Term5 ::= Integer ;                           -- tm_const
+TmNil.   Term5 ::= "nil" Type2 ;                       -- tm_nil
+TmPair.  Term5 ::= "(" Term "," Term ")" ;             -- tm_pair
+
+coercions Term 5 ;

@@ -1,0 +1,20 @@
+-- What let does, and what it does not do.
+--
+-- 1. let nests: each binding is visible in the body of the next.
+-- 2. An inner let shadows an outer one of the same name.
+-- 3. let is NOT recursive: in `let f = ... f ... in`, the f on the right is
+--    not the f being bound.  See examples/bad/let-not-recursive.mstlc.
+--    Recursion needs fix, as in fact below.
+-- 4. let is call by value: the bound term is evaluated once, before the
+--    body, even if the body never uses it.  That is why
+--    examples/bad/diverges.mstlc hangs.
+-- 5. A let may bind anything at all -- a function, a pair, a list.
+
+let nested   = let a = 2 in let b = 3 in let c = 4 in a * b * c in
+let shadowed = let x = 10 in (let x = succ x in x) * x in
+let fact     = fix (\f:Nat -> Nat, \n:Nat,
+                      if0 n then 1 else n * (f (pred n))) in
+let p        = (\n:Nat, n * n, 7) in
+((nested, shadowed), (fact 4, p.fst p.snd))
+
+-- ((24, 110), (24, 49))

@@ -1,0 +1,3 @@
+-- let is NOT recursive: the f on the right hand side is not the f being
+-- bound, so it is simply unbound.  Recursion needs fix.
+let f = \n:Nat, f n in f 0

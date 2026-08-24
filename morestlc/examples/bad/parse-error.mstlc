@@ -1,0 +1,4 @@
+-- Deliberately broken syntax: the lambda has no type annotation.
+-- This is the only file here that fails in the FRONT END rather than in
+-- the type checker.
+\x, x
