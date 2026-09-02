@@ -1,4 +1,5 @@
 -- ---------------------------------------------------------------------------
+
 -- | Static semantics of MoreSTLC  --  *** STUDENT EXERCISE ***
 --
 -- Implement the typing relation
@@ -12,32 +13,35 @@
 --
 -- ---------------------------------------------------------------------------
 module TypeCheck
-  ( Ctx
-  , TypeError (..)
-  , typeOf
-  , typeCheck
-  , expect
-  , renderTypeError
-  ) where
+  ( Ctx,
+    TypeError (..),
+    typeOf,
+    typeCheck,
+    expect,
+    renderTypeError,
+  )
+where
 
-import Prelude
 import AbsMoreSTLC
-import Pretty (ppTerm, ppType, unIdent)
+import AbsMoreSTLC (Type (TyArrow))
+import Data.Either (Either (Right))
 import Env (Env)
-import qualified Env
+import Env qualified
+import Pretty (ppTerm, ppType, unIdent)
+import Prelude
 
 -- | A typing context: names to types.
 type Ctx = Env Type
 
 data TypeError
   = UnboundVariable Ident
-  | Mismatch Type Type Term
-    -- ^ expected type, actual type, offending term
+  | -- | expected type, actual type, offending term
+    Mismatch Type Type Term
   | NotAFunction Type Term
   | NotAPair Type Term
   | NotAList Type Term
-  | BranchMismatch Type Type Term
-    -- ^ type of the first branch, type of the second branch, whole term
+  | -- | type of the first branch, type of the second branch, whole term
+    BranchMismatch Type Type Term
   | NotImplemented String
   deriving (Eq, Show)
 
@@ -63,38 +67,49 @@ expect ctx ty t = do
 -- Three cases are filled in below as worked examples.  Replace every
 -- @Left (NotImplemented ...)@ with the corresponding rule.
 typeOf :: Ctx -> Term -> Either TypeError Type
-
 -- --- worked examples -------------------------------------------------------
 
---   T_Var                            T_Abs
---   x \in Gamma  Gamma x = T1        Gamma, x:T2 |-- t1 \in T1
---   -------------------------        ------------------------------
---   Gamma |-- x \in T1               Gamma |-- \x:T2, t1 \in T2 -> T1
 --   T_Var
+--   x \in Gamma  Gamma x = T1
+--   -------------------------
+--   Gamma |-- x \in T1
 
 typeOf ctx (TmVar x) =
   case Env.look x ctx of -- busca o tipo de do termo do ctx
-    Just t  -> Right t  -- se ele foi bem tipado, eu apenas retorno o tipo encontrado
-    Nothing -> Left (UnboundVariable x) -- se não foi definido, a varíavel não tem tipo 
+    Just t -> Right t -- se ele foi bem tipado, eu apenas retorno o tipo encontrado
+    Nothing -> Left (UnboundVariable x) -- se não foi definido, a varíavel não tem tipo
 
-typeOf ctx (TmAbs _x _ty t1)   = Left (NotImplemented "typeOf: TmAbs")
+-- T_Abs
+-- Gamma, x:T2 |-- t1 \in T1
+-- ------------------------------
+-- Gamma |-- \x:T2, t1 \in T2 -> T1
+typeOf ctx (TmAbs x ty2 t1) = do
+  let ctx' = Env.extend x ty2 ctx -- adiciona o tipo do arg ao ctx -> necessário por conta do shadowing
+  ty1 <- typeOf ctx' t1 -- descobre o tipo do corpo da função
+  Right (TyArrow ty2 ty1) -- retorno o tipo da função lambda
 
-
---   T_Nat            T_Succ                     T_Pred
---   ---------------  Gamma |-- t1 \in Nat       Gamma |-- t1 \in Nat
---   Gamma |-- n      -----------------------    -----------------------
---       \in Nat      Gamma |-- succ t1 \in Nat  Gamma |-- pred t1 \in Nat
-
--- T_Nat
+--
+--   T_Nat
+--   ---------------
+--   Gamma |-- n
+--       \in Nat
 typeOf _ (TmConst _) = Right TyNat -- nessa versão, toda constante é um natural
 
--- T_Succ
-typeOf ctx (TmSucc t1) = do -- todo sucesso de uma constante é um natural
+-- T_Succ                     T_Pred
+-- Gamma |-- t1 \in Nat       Gamma |-- t1 \in Nat
+-----------------------    -----------------------
+-- Gamma |-- succ t1 \in Nat  Gamma |-- pred t1 \in Nat
+-- T_Succ                     T_Pred
+-- Gamma |-- t1 \in Nat       Gamma |-- t1 \in Nat
+-----------------------    -----------------------
+-- Gamma |-- succ t1 \in Nat  Gamma |-- pred t1 \in Nat
+typeOf ctx (TmSucc t1) = do
   expect ctx TyNat t1
   Right TyNat
 
 -- T_Pred
-typeOf ctx (TmPred t1) = do -- todo antecessor de uma constante é um natural
+typeOf ctx (TmPred t1) = do
+  -- todo antecessor de uma constante é um natural
   expect ctx TyNat t1 -- o tipo de t1 deve ser um natural
   Right TyNat
 
@@ -106,7 +121,7 @@ typeOf ctx (TmPred t1) = do -- todo antecessor de uma constante é um natural
 --   ------------------------
 --   Gamma |-- t1 * t2 \in Nat
 --
-typeOf ctx (TmMult t1 t2)     = do
+typeOf ctx (TmMult t1 t2) = do
   expect ctx TyNat t1
   expect ctx TyNat t2
   Right TyNat -- Se ambos termos foram naturais, o resultado será natural tmb
@@ -119,15 +134,14 @@ typeOf ctx (TmMult t1 t2)     = do
 --   Gamma |-- if0 t1 then t2 else t3
 --       \in T0
 --
-typeOf ctx t@(TmIf0 t1 t2 t3)  = do
+typeOf ctx t@(TmIf0 t1 t2 t3) = do
   expect ctx TyNat t1 -- t1 deve ser Nat
   ty2 <- typeOf ctx t2
   ty3 <- typeOf ctx t3
 
   if (ty2 == ty3) -- t2 e t3 deve ter tipos iguais
-    then Right ty2 
+    then Right ty2
     else Left (BranchMismatch ty2 ty3 t)
-
 
 --   T_App
 --   Gamma |-- t1 \in T2 -> T1    Gamma |-- t2 \in T2
@@ -138,21 +152,19 @@ typeOf ctx t@(TmApp t1 t2) = do
   ty1 <- typeOf ctx t1
   ty2 <- typeOf ctx t2
   case ty1 of
-    TyArrow ty3 ty4 -> 
-      if ty3 == ty2      -- Se tipo do arg igual tipo do valor passado (arg no dominio)
+    TyArrow ty3 ty4 ->
+      if ty3 == ty2 -- Se tipo do arg igual tipo do valor passado (arg no dominio)
         then Right (ty4) -- O tipo retornado é o tipo de retorno (tipo da imagem)
-        else Left (Mismatch expected actual ty2)
+        else Left (Mismatch ty3 ty2 t)
     _ -> Left (NotAFunction ty1 t)
 
-
-
---   T_Pair                                   
---   Gamma |-- t1 \in T1                      
---   Gamma |-- t2 \in T2                         
---   ----------------------------             
---   Gamma |-- (t1, t2) \in T1 * T2           
+--   T_Pair
+--   Gamma |-- t1 \in T1
+--   Gamma |-- t2 \in T2
+--   ----------------------------
+--   Gamma |-- (t1, t2) \in T1 * T2
 --
-typeOf ctx (TmPair t1 t2)     = do
+typeOf ctx (TmPair t1 t2) = do
   ty1 <- typeOf ctx t1
   ty2 <- typeOf ctx t2
   Right (TyProd ty1 ty2)
@@ -165,29 +177,27 @@ typeOf ctx (TmPair t1 t2)     = do
 --      \in T1                \in T2
 typeOf ctx t@(TmFst t0) = do
   ty0 <- typeOf ctx t0
-  case ty0 of 
+  case ty0 of
     TyProd ty1 _ -> Right ty1
-    _ ->  Left (NotAPair ty0 t)
-typeOf ctx (TmSnd t0) = do
+    _ -> Left (NotAPair ty0 t)
+--
+typeOf ctx t@(TmSnd t0) = do
   ty0 <- typeOf ctx t0
-  case ty0 of 
+  case ty0 of
     TyProd _ ty2 -> Right ty2
-    _ ->  Left (NotAPair ty0 t)
-
-
+    _ -> Left (NotAPair ty0 t)
 
 -- TODO
---   T_Let                                    
---   Gamma |-- t1 \in T1                     
---   Gamma, x:T1 |-- t2 \in T2                
---   ---------------------------------       
+--   T_Let
+--   Gamma |-- t1 \in T1
+--   Gamma, x:T1 |-- t2 \in T2
+--   ---------------------------------
 --   Gamma |-- let x = t1 in t2 \in T2
-typeOf ctx (TmLet x t1 t2)  = do
-  ty1 <- typeOf ctx t1
-  -- ctx' <- ...
+typeOf ctx (TmLet x t1 t2) = do
+  ty1 <- typeOf ctx t1 -- descubro tipo t1 (x)
+  let ctx' = Env.extend x ty1 ctx -- extend é função pura, tem que usar let
+  typeOf ctx' t2
 
-
--- TODO
 --   T_Fix
 --   Gamma |-- t1 \in T1 -> T1
 --   -------------------------
@@ -196,26 +206,24 @@ typeOf ctx (TmLet x t1 t2)  = do
 typeOf ctx t@(TmFix t1) = do
   ty1 <- typeOf ctx t1
   case ty1 of
-    TyArrow ty2 ty3 -> 
-      if ty2 == ty3   
-        then
-        else Left (Mismatch expected actual ty2)
-    _ -> NotAFunction ty1 t
+    TyArrow ty2 ty3 ->
+      if ty2 == ty3
+        then Right ty2
+        else Left (Mismatch ty2 ty1 t)
+    _ -> Left (NotAFunction ty1 t)
 
---   T_Nil                                    
---   -------------------------------          
---   Gamma |-- nil T1 \in List T1             
+--   T_Nil
+--   -------------------------------
+--   Gamma |-- nil T1 \in List T1
 --
-typeOf ctx (TmNil ty) = Right TyList ty
-  
-
+typeOf ctx (TmNil ty) = Right (TyList ty)
 --   T_Cons
 --   Gamma |-- t1 \in T1
 --   Gamma |-- t2 \in List T1
 --   -----------------------------
 --   Gamma |-- t1 :: t2 \in List T1
-typeOf ctx (TmCons t1 t2)     = do
-  ty1 <- typeOf t1 -- Descubro o tipo do elemento sendo concatenado
+typeOf ctx (TmCons t1 t2) = do
+  ty1 <- typeOf ctx t1 -- Descubro o tipo do elemento sendo concatenado
   expect ctx (TyList ty1) t2 -- A lista (t2) deve ser uma lista do tipo ty1
   Right (TyList ty1) -- se tudo bateu, só retorno o tipo da lista
 
@@ -225,10 +233,7 @@ typeOf ctx (TmCons t1 t2)     = do
 --   ------------------------------------------------------------
 --   Gamma |-- case t1 of | nil => t2 | x1 :: x2 => t3 \in T2
 --
---typeOf ctx t@TmLcase{}          = Left (NotImplemented ("typeOf: TmLcase in " ++ ppTerm t))
-
-
-
+typeOf ctx t@TmLcase {} = Left (NotImplemented ("typeOf: TmLcase in " ++ ppTerm t))
 
 -- ---------------------------------------------------------------------------
 -- Error messages
@@ -239,9 +244,14 @@ renderTypeError err = case err of
   UnboundVariable x ->
     "unbound variable `" ++ unIdent x ++ "'"
   Mismatch expected actual t ->
-    "type mismatch in `" ++ ppTerm t ++ "'\n" ++
-    "    expected: " ++ ppType expected ++ "\n" ++
-    "      actual: " ++ ppType actual
+    "type mismatch in `"
+      ++ ppTerm t
+      ++ "'\n"
+      ++ "    expected: "
+      ++ ppType expected
+      ++ "\n"
+      ++ "      actual: "
+      ++ ppType actual
   NotAFunction ty t ->
     "`" ++ ppTerm t ++ "' has type " ++ ppType ty ++ ", which is not a function type"
   NotAPair ty t ->
@@ -249,8 +259,13 @@ renderTypeError err = case err of
   NotAList ty t ->
     "`" ++ ppTerm t ++ "' has type " ++ ppType ty ++ ", which is not a list type"
   BranchMismatch ty1 ty2 t ->
-    "branches of `" ++ ppTerm t ++ "' disagree:\n" ++
-    "    first branch : " ++ ppType ty1 ++ "\n" ++
-    "    second branch: " ++ ppType ty2
+    "branches of `"
+      ++ ppTerm t
+      ++ "' disagree:\n"
+      ++ "    first branch : "
+      ++ ppType ty1
+      ++ "\n"
+      ++ "    second branch: "
+      ++ ppType ty2
   NotImplemented what ->
     "not implemented yet -- " ++ what

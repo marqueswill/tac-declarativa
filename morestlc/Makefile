@@ -73,7 +73,10 @@ $(EXE): $(LEXER) $(PARSER) $(HS_SOURCES)
 	$(GHC) --make -i$(SRCDIR) -i$(GENDIR) -outputdir $(BUILDDIR) -o $(EXE) $(SRCDIR)/Main.hs
 
 test: $(EXE)
-	sh ./test.sh
+	@for file in examples/*.mstlc; do \
+		echo "=> Executando $$file"; \
+		./$(EXE) "$$file"; \
+	done
 
 clean:
 	rm -rf $(BUILDDIR) $(EXE) $(EXE).exe
