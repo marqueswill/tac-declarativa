@@ -233,7 +233,19 @@ typeOf ctx (TmCons t1 t2) = do
 --   ------------------------------------------------------------
 --   Gamma |-- case t1 of | nil => t2 | x1 :: x2 => t3 \in T2
 --
-typeOf ctx t@TmLcase {} = Left (NotImplemented ("typeOf: TmLcase in " ++ ppTerm t))
+typeOf ctx t@(TmLcase t1 t2 x1 x2 t3) = do
+  ty1 <- typeOf ctx t1
+  ty2 <- typeOf ctx t2
+
+  case ty1 of
+    TyList ty_list -> do
+      let ctx' = Env.extend x2 (TyList ty_list) (Env.extend x1 ty_list ctx)
+
+      ty3 <- typeOf ctx' t3
+      if ty2 /= ty3
+        then Left (BranchMismatch ty2 ty3 t)
+        else Right ty2
+    _ -> Left (NotAList ty1 t)
 
 -- ---------------------------------------------------------------------------
 -- Error messages

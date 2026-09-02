@@ -77,6 +77,8 @@ test: $(EXE)
 		echo "=> Executando $$file"; \
 		./$(EXE) "$$file"; \
 	done
+	
+
 
 clean:
 	rm -rf $(BUILDDIR) $(EXE) $(EXE).exe
