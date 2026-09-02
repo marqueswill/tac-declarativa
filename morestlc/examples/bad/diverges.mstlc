@@ -6,4 +6,4 @@
 -- Run it only if you want to watch your evaluator spin (Ctrl-C to stop).
 -- It type checks instantly with:
 --   morestlc --type-only examples/bad/diverges.mstlc
-fix (\x:Nat, x)
+-- fix (\x:Nat, x)

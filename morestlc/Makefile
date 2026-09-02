@@ -16,17 +16,7 @@ HAPPY ?= happy
 GHC   ?= ghc
 
 # --- Windows: put a POSIX toolset on the PATH -------------------------------
-# The recipes below are ordinary Unix commands (mkdir -p, touch, rm -rf, and
-# sh ./test.sh).  Started from Git Bash they all resolve and there is nothing
-# to do here; started from cmd.exe or PowerShell not one of them is on the
-# PATH, and make dies with
-#     process_begin: CreateProcess(NULL, sh ./test.sh, ...) failed.
-# Git for Windows ships a complete set in <git>\usr\bin, so add that directory,
-# located from wherever git.exe itself is.  Override if the guess is wrong:
-#     make test GIT_USR_BIN="C:\Program Files\Git\usr\bin"
 ifeq ($(OS),Windows_NT)
-# cmd.exe echoes $OSTYPE back unchanged, a POSIX shell expands it: a non-empty
-# result means make is running the recipes through cmd.exe and needs help.
 USING_CMD := $(findstring $$OSTYPE,$(shell echo $$OSTYPE))
 ifneq ($(USING_CMD),)
 GIT_USR_BIN ?= $(subst \cmd\git.exe,\usr\bin,$(shell where git 2>NUL))
@@ -60,8 +50,6 @@ $(GENDIR)/bnfc.stamp: $(GRAMMAR)
 	touch $@
 
 # --- 2. Alex and Happy: the specifications -> Haskell ------------------------
-# Happy is silent when the grammar is unambiguous.  Any "shift/reduce" or
-# "reduce/reduce" message here means the grammar has to be fixed.
 $(LEXER): $(GENDIR)/bnfc.stamp
 	$(ALEX) -g $(GENDIR)/Lex$(LANGUAGE).x -o $@
 
@@ -72,13 +60,14 @@ $(PARSER): $(GENDIR)/bnfc.stamp
 $(EXE): $(LEXER) $(PARSER) $(HS_SOURCES)
 	$(GHC) --make -i$(SRCDIR) -i$(GENDIR) -outputdir $(BUILDDIR) -o $(EXE) $(SRCDIR)/Main.hs
 
+# --- 4. Testes baseados nas funcionalidades da Main.hs -----------------------
 test: $(EXE)
-	@for file in examples/*.mstlc; do \
-		echo "=> Executando $$file"; \
-		./$(EXE) "$$file"; \
-	done
-	
-
+	@echo "=== 1/3: Sanity Check (Parser Roundtrip) ==="
+	./$(EXE) --roundtrip examples/*.mstlc
+	@echo "\n=== 2/3: Executando cenários válidos ==="
+	./$(EXE) --run examples/*.mstlc
+	@echo "\n=== 3/3: Executando cenários inválidos (devem gerar type/parse error) ==="
+	./$(EXE) examples/bad/*.mstlc || true
 
 clean:
 	rm -rf $(BUILDDIR) $(EXE) $(EXE).exe
