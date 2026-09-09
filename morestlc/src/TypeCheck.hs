@@ -95,6 +95,12 @@ typeOf ctx (TmAbs x ty2 t1) = do
 --       \in Nat
 typeOf _ (TmConst _) = Right TyNat -- nessa versão, toda constante é um natural
 
+--   T_Unit
+--
+--   -----------------------------
+--   Gamma |-- unit \in Unit
+typeOf _ (TmUnit) = Right TyUnit
+--
 -- T_Succ                     T_Pred
 -- Gamma |-- t1 \in Nat       Gamma |-- t1 \in Nat
 -----------------------    -----------------------

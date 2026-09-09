@@ -56,8 +56,10 @@ entrypoints Term ;
 
 TyArrow. Type  ::= Type1 "->" Type ;                   -- Ty_Arrow
 TyProd.  Type1 ::= Type1 "*" Type2 ;                   -- Ty_Prod
+TySum.   Type1 ::= Type1 "+" Type2 ;
 TyList.  Type2 ::= "List" Type2 ;                      -- Ty_List
 TyNat.   Type2 ::= "Nat" ;                             -- Ty_Nat
+TyUnit.  Type2 ::= "Unit" ;                           -- Ty_Unit
 
 coercions Type 2 ;
 
@@ -75,10 +77,10 @@ coercions Type 2 ;
 TmAbs.   Term  ::= "\\" Ident ":" Type "," Term ;      -- tm_abs
 TmLet.   Term  ::= "let" Ident "=" Term "in" Term ;    -- tm_let
 TmIf0.   Term  ::= "if0" Term "then" Term "else" Term ;  -- tm_if0
-TmLcase. Term  ::= "case" Term "of" "|" "nil" "=>" Term "|" Ident "::" Ident "=>" Term ;  -- tm_lcase
+TmLcase. Term  ::= "case" Term "of" "|" "nil" "=>" Term "|" Ident "::" Ident "=>" Term ;  -- tm_lcase (list case)
+
 
 TmCons.  Term1 ::= Term2 "::" Term1 ;                  -- tm_cons
-
 TmMult.  Term2 ::= Term3 "*" Term2 ;                   -- tm_mult
 
 TmApp.   Term3 ::= Term3 Term4 ;                       -- tm_app
@@ -91,7 +93,10 @@ TmSnd.   Term4 ::= Term4 ".snd" ;                      -- tm_snd
 
 TmVar.   Term5 ::= Ident ;                             -- tm_var
 TmConst. Term5 ::= Integer ;                           -- tm_const
+TmUnit.  Term5 ::= "unit" ;
 TmNil.   Term5 ::= "nil" Type2 ;                       -- tm_nil
 TmPair.  Term5 ::= "(" Term "," Term ")" ;             -- tm_pair
+
+
 
 coercions Term 5 ;

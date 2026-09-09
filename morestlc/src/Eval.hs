@@ -23,7 +23,7 @@ module Eval
 where
 
 import AbsMoreSTLC
-import AbsMoreSTLC (Term (TmCons, TmLet))
+import AbsMoreSTLC (Term (TmCons, TmLet, TmUnit))
 import Data.Either (Either (Left, Right))
 import Pretty (ppTerm, unIdent)
 import Text.XHtml (sub)
@@ -49,6 +49,7 @@ isValue e = case e of
   --        evaluated
   TmConst _ -> True -- v_nat
   TmNil _ -> True -- v_lnil
+  TmUnit -> True
   TmCons v1 v2 -> isValue v1 && isValue v2 -- v_lcons -> calls recursively
   TmPair v1 v2 -> isValue v1 && isValue v2 -- v_pair -> calls recursively
   _ -> False
@@ -99,23 +100,17 @@ subst x s = go
       TmLet y t1 t2 ->
         -- let y = t1 in t2
         -- todo "subst: TmLet (t1 is not in the scope of y)"
+        -- let x = 10 in (let x = x + 1 in x * 2)
+        -- 10 substitui apenas na redefinição, senão substitui em ambos
         if x /= y -- se o subst de um let encontrar outro let (redefinição/shadowing)
           then TmLet y (go t1) (go t2) -- substitui x em ambos
-          else TmLet y t1' t2' -- substitui x em t1, pego o resultado e substituo ele em t2
-          -- shadowing:
-          -- let x = 10 in (let x = x + 1 in x * 2)
-          -- 10 substitui apenas na redefinição, senão substitui em ambos
-        where
-          t1' = go t1
-          t2' = subst y t1' t2
+          else TmLet y (go t1) t2 -- tece shadowing -> substitui apenas na esquerda
       TmLcase t1 t2 j k t3 ->
         -- todo "subst: TmLcase (x and y are bound in the last branch only)"
-        -- x
         let t1' = go t1
             t2' = go t2
-         in if (x == j || x == k) -- verificação de shadowing para a ultima branch
-              then TmLcase t1' t2' j k t3
-              else TmLcase t1' t2' j k (go t3)
+            t3' = if (x == j || x == k) then t3 else go t3 -- se ocorrer shadowing no head::tail, paro a substituição
+         in TmLcase t1' t2' j k t3'
       -- congruence cases, nothing to do here
       -- casos que só propaga/ continua a recursão
       TmApp t1 t2 -> TmApp (go t1) (go t2)
@@ -131,6 +126,7 @@ subst x s = go
       -- Casos base
       TmConst n -> TmConst n
       TmNil ty -> TmNil ty
+      TmUnit -> TmUnit
 
     todo :: String -> a
     todo what = error ("*** not implemented yet -- " ++ what ++ " (see src/Eval.hs)")
