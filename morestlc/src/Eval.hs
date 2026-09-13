@@ -106,14 +106,14 @@ subst x s = go
         if x /= y -- se o subst de um let encontrar outro let (redefinição/shadowing)
           then TmLet y (go t1) (go t2) -- substitui x em ambos
           else TmLet y (go t1) t2 -- tece shadowing -> substitui apenas na esquerda
-      TmLcase t1 t2 j k t3 ->
-        -- todo "subst: TmLcase (x and y are bound in the last branch only)"
-        let t1' = go t1
-            t2' = go t2
-            t3' = if (x == j || x == k) then t3 else go t3 -- se ocorrer shadowing no head::tail, paro a substituição
-         in TmLcase t1' t2' j k t3'
-      -- congruence cases, nothing to do here
-      -- casos que só propaga/ continua a recursão
+          -- TmLcase t1 t2 j k t3 ->
+          --   -- todo "subst: TmLcase (x and y are bound in the last branch only)"
+          --   let t1' = go t1
+          --       t2' = go t2
+          --       t3' = if (x == j || x == k) then t3 else go t3 -- se ocorrer shadowing no head::tail, paro a substituição
+          --    in TmLcase t1' t2' j k t3'
+          -- congruence cases, nothing to do here
+          -- casos que só propaga/ continua a recursão
       TmApp t1 t2 -> TmApp (go t1) (go t2)
       TmIf0 t1 t2 t3 -> TmIf0 (go t1) (go t2) (go t3)
       TmSucc t1 -> TmSucc (go t1)
@@ -250,12 +250,31 @@ eval (TmCons t1 t2) = do
 --   t1 ==> vh :: vt    [x:=vh]([y:=vt]t3) ==> v
 --   -------------------------------------------- (ST_LcaseCons)
 --   case t1 of | nil => t2 | x::y => t3 ==> v
-eval (TmLcase t1 t2 x y t3) = do
+-- eval t@(TmLcase t1 t2 x y t3) = do
+--   v1 <- eval t1
+--   case v1 of
+--     TmNil _ -> eval t2
+--     TmCons vh vt -> eval (subst x vh (subst y vt t3))
+--     _ -> Left (Stuck t)
+
+--
+-- se t1 for [MatchCase PatNil t2, MatchCase PatCons x1 x2 t3]
+eval t@(TmCase t1 matches) = do
   v1 <- eval t1
-  case v1 of
-    TmNil _ -> eval t2
-    TmCons vh vt -> eval (subst x vh (subst y vt t3))
-    _ -> Left (Stuck (TmLcase t1 t2 x y t3))
+  tryMatches v1 matches
+  where
+    tryMatches :: Term -> [Match] -> Either RuntimeError Term
+    tryMatches _ [] = Left (Stuck t) -- Caso base, nenhum pattern casou
+    tryMatches v (crrntMatch@(MatchCase pat body) : otherMatches) =
+      case matchPattern pat v of -- tenta casar o termo com um dos
+        Just bindings ->
+          -- Padrão casou: faz as substituições
+          -- foldr aplica a função `subst` para cada par (x, valor) na lista de bindings.
+          -- o subst lida com os demais tipos de termos, não preciso do Case dentro do subst
+          let boundBody = foldr (\(x, val) currentTerm -> subst x val currentTerm) body bindings
+           in eval boundBody
+        Nothing ->
+          tryMatches v otherMatches -- Padrão não casou com nenhum padrão válidos, tenta o próximo match da lista
 
 --   t1 ==> \xf:T1, t     [xf := fix (\xf:T1, t)] t ==> v
 --   -----------------------------------------------------  (ST_FixAbs)
@@ -274,6 +293,32 @@ resolveOperation n1 n2 op =
     OpMult -> TmConst (n1 * n2)
     OpDiv -> TmConst (div n1 n2)
     OpMod -> TmConst (mod n1 n2)
+
+-- função que faz o match dos patterns com o termo passado
+-- ela retorna uma lista de bindings para fazer a substituicao
+matchPattern :: Pattern -> Term -> Maybe [(Ident, Term)]
+matchPattern (PatVar x) v = Just [(x, v)] -- substituicao simples
+
+-- nada pra substituir
+matchPattern PatUnit TmUnit = Just []
+matchPattern PatNil (TmNil _) = Just []
+matchPattern (PatConst n) (TmConst m) | n == m = Just []
+--
+-- (p, p)
+matchPattern (PatPair p1 p2) (TmPair v1 v2) = do
+  bindings1 <- matchPattern p1 v1 -- fst pode ser "aberta"
+  bindings2 <- matchPattern p2 v2 -- snd pode ser "aberta"
+  return (bindings1 ++ bindings2)
+
+-- vh:vt => cons p p
+matchPattern (PatCons p1 p2) (TmCons v1 v2) = do
+  -- tenta casar a cabeça (p1 com v1) e a cauda (p2 com v2)
+  bindings1 <- matchPattern p1 v1 -- head pode ser "aberta"
+  bindings2 <- matchPattern p2 v2 -- tail pode ser "aberta"
+  return (bindings1 ++ bindings2)
+
+-- nenhuma combinação casou, continua ou falha
+matchPattern _ _ = Nothing
 
 -- ---------------------------------------------------------------------------
 -- Error messages
