@@ -121,13 +121,13 @@ typeOf ctx (TmPred t1) = do
 
 -- --- your turn -------------------------------------------------------------
 
---   T_Mult
+--   T_BinOp
 --   Gamma |-- t1 \in Nat
 --   Gamma |-- t2 \in Nat
 --   ------------------------
---   Gamma |-- t1 * t2 \in Nat
+--   Gamma |-- t1 binop t2 \in Nat
 --
-typeOf ctx (TmMult t1 t2) = do
+typeOf ctx (TmBinOp t1 op t2) = do
   expect ctx TyNat t1
   expect ctx TyNat t2
   Right TyNat -- Se ambos termos foram naturais, o resultado será natural tmb

@@ -64,6 +64,16 @@ TyUnit.  Type2 ::= "Unit" ;                           -- Ty_Unit
 coercions Type 2 ;
 
 -- ---------------------------------------------------------------------------
+-- Binary Operators -- BinOp
+-- ---------------------------------------------------------------------------
+
+OpPlus. BinOp ::= "+" ;
+OpMinus. BinOp ::= "-" ;
+OpMult. BinOp ::= "*" ;
+OpDiv. BinOp ::= "/" ;
+OpMod. BinOp ::= "%" ;
+
+-- ---------------------------------------------------------------------------
 -- Terms  --  Inductive tm
 --
 --   level 0   \x:T, t    let    if0    case           (extend to the right)
@@ -78,10 +88,9 @@ TmAbs.   Term  ::= "\\" Ident ":" Type "," Term ;      -- tm_abs
 TmLet.   Term  ::= "let" Ident "=" Term "in" Term ;    -- tm_let
 TmIf0.   Term  ::= "if0" Term "then" Term "else" Term ;  -- tm_if0
 TmLcase. Term  ::= "case" Term "of" "|" "nil" "=>" Term "|" Ident "::" Ident "=>" Term ;  -- tm_lcase (list case)
-
-
 TmCons.  Term1 ::= Term2 "::" Term1 ;                  -- tm_cons
-TmMult.  Term2 ::= Term3 "*" Term2 ;                   -- tm_mult
+
+TmBinOp.  Term2 ::= Term3 BinOp Term2 ;                   -- tm_binop
 
 TmApp.   Term3 ::= Term3 Term4 ;                       -- tm_app
 TmSucc.  Term3 ::= "succ" Term4 ;                      -- tm_succ
@@ -100,3 +109,4 @@ TmPair.  Term5 ::= "(" Term "," Term ")" ;             -- tm_pair
 
 
 coercions Term 5 ;
+

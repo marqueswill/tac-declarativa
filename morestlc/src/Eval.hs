@@ -23,8 +23,9 @@ module Eval
 where
 
 import AbsMoreSTLC
-import AbsMoreSTLC (Term (TmCons, TmLet, TmUnit))
+import AbsMoreSTLC (Term (TmBinOp, TmCons, TmLet, TmUnit))
 import Data.Either (Either (Left, Right))
+import Distribution.Compat.Prelude (Integer)
 import Pretty (ppTerm, unIdent)
 import Text.XHtml (sub)
 import Prelude
@@ -117,7 +118,7 @@ subst x s = go
       TmIf0 t1 t2 t3 -> TmIf0 (go t1) (go t2) (go t3)
       TmSucc t1 -> TmSucc (go t1)
       TmPred t1 -> TmPred (go t1)
-      TmMult t1 t2 -> TmMult (go t1) (go t2)
+      TmBinOp t1 op t2 -> TmBinOp (go t1) op (go t2)
       TmFst t0 -> TmFst (go t0)
       TmSnd t0 -> TmSnd (go t0)
       TmFix t1 -> TmFix (go t1)
@@ -181,14 +182,14 @@ eval (TmPred t1) = do
 --   t1 ==> n1    t2 ==> n2
 --   ------------------------    (ST_Mulconsts)
 --   t1 * t2 ==> n1*n2
-eval (TmMult t1 t2) = do
+eval t@(TmBinOp t1 op t2) = do
   v1 <- eval t1
   v2 <- eval t2
   case v1 of
     TmConst n1 -> case v2 of
-      TmConst n2 -> Right (TmConst (n1 * n2))
-      _ -> Left (Stuck (TmMult v1 t2))
-    _ -> Left (Stuck (TmMult t1 t2))
+      TmConst n2 -> Right (resolveOperation n1 n2 op)
+      _ -> Left (Stuck t)
+    _ -> Left (Stuck t)
 
 --   t1 ==> 0    t2 ==> v        t1 ==> n   n > 0    t3 ==> v
 --   -------------------------   -----------------------------  (ST_If0Zero, ST_If0Nonzero)
@@ -264,6 +265,15 @@ eval (TmFix t1) = do
   case v1 of
     TmAbs xf ty t -> eval (subst xf (TmFix v1) t)
     _ -> Left (Stuck (TmFix t1))
+
+resolveOperation :: Integer -> Integer -> BinOp -> Term
+resolveOperation n1 n2 op =
+  case op of
+    OpPlus -> TmConst (n1 + n2)
+    OpMinus -> TmConst (n1 - n2)
+    OpMult -> TmConst (n1 * n2)
+    OpDiv -> TmConst (div n1 n2)
+    OpMod -> TmConst (mod n1 n2)
 
 -- ---------------------------------------------------------------------------
 -- Error messages
