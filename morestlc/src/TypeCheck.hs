@@ -42,6 +42,7 @@ data TypeError
   | NotAList Type Term
   | -- | type of the first branch, type of the second branch, whole term
     BranchMismatch Type Type Term
+  | MatchBranchMismatch Type Term
   | NotImplemented String
   deriving (Eq, Show)
 
@@ -239,19 +240,62 @@ typeOf ctx (TmCons t1 t2) = do
 --   ------------------------------------------------------------
 --   Gamma |-- case t1 of | nil => t2 | x1 :: x2 => t3 \in T2
 --
-typeOf ctx t@(TmLcase t1 t2 x1 x2 t3) = do
+-- typeOf ctx t@(TmLcase t1 t2 x1 x2 t3) = do
+--   ty1 <- typeOf ctx t1
+--   ty2 <- typeOf ctx t2
+
+--   case ty1 of
+--     TyList ty_list -> do
+--       let ctx' = Env.extend x2 (TyList ty_list) (Env.extend x1 ty_list ctx)
+
+--       ty3 <- typeOf ctx' t3
+--       if ty2 /= ty3
+--         then Left (BranchMismatch ty2 ty3 t)
+--         else Right ty2
+--     _ -> Left (NotAList ty1 t)
+
+typeOf ctx t@(TmCase t1 matches) = do
   ty1 <- typeOf ctx t1
-  ty2 <- typeOf ctx t2
 
-  case ty1 of
-    TyList ty_list -> do
-      let ctx' = Env.extend x2 (TyList ty_list) (Env.extend x1 ty_list ctx)
+  case matches of
+    [] -> Left (NotImplemented "Empty case expression")
+    _ -> do
+      branchTypes <- mapM (checkMatch ctx ty1) matches -- Vou de branch em branch fazendo verificação de tipos
+      case branchTypes of
+        (ty2 : _) ->
+          if all (== ty2) branchTypes -- Se todas branchs tem o mesmo tipo de retorno
+            then Right ty2 -- retorno esse tipo
+            else Left (MatchBranchMismatch ty2 t) -- senao lanço erro
+        [] -> Left (NotImplemented "Empty case expression")
+  where
+    -- Verifica se o match é válido, isto é
+    -- Primeiro verifica se o pattern é válido, se for
+    -- Extrai os bindings (se houver) e extende o contexto para fazer o typeOf
+    -- Vai retornar uma lista com todos os tipos das branches
+    checkMatch :: Ctx -> Type -> Match -> Either TypeError Type
+    checkMatch currentCtx ty1 (MatchCase pat termBody) = do
+      case (checkPattern pat ty1) of -- verifico se o pattern é válido levando o scrutinee em conta
+        Just bindings ->
+          -- retorna os bindings do padrão
+          let extendedCtx = foldl (\acc (x, ty) -> Env.extend x ty acc) currentCtx bindings -- adiciono os bindings ao contexto da branch
+           in typeOf extendedCtx termBody -- descubro o tipo de retorno do corpo
+        Nothing -> Left (NotImplemented "Pattern match failed")
 
-      ty3 <- typeOf ctx' t3
-      if ty2 /= ty3
-        then Left (BranchMismatch ty2 ty3 t)
-        else Right ty2
-    _ -> Left (NotAList ty1 t)
+    checkPattern :: Pattern -> Type -> Maybe [(Ident, Type)]
+    -- Casos base
+    checkPattern PatUnit TyUnit = Just []
+    checkPattern PatNil (TyList _) = Just [] -- PatNil quando t1 é uma lista
+    checkPattern (PatConst _) TyNat = Just [] -- quando o match é com Números
+    checkPattern (PatVar x) ty = Just [(x, ty)]
+    checkPattern (PatPair p1 p2) (TyProd ty1 ty2) = do
+      bindings1 <- checkPattern p1 ty1
+      bindings2 <- checkPattern p2 ty2
+      Just (bindings1 ++ bindings2)
+    checkPattern (PatCons p1 p2) (TyList listType) = do
+      bindings1 <- checkPattern p1 listType -- head
+      bindings2 <- checkPattern p2 (TyList listType) -- tail (varios elem do tipo listType)
+      Just (bindings1 ++ bindings2)
+    checkPattern _ _ = Nothing
 
 -- ---------------------------------------------------------------------------
 -- Error messages
@@ -285,5 +329,10 @@ renderTypeError err = case err of
       ++ "\n"
       ++ "    second branch: "
       ++ ppType ty2
+  MatchBranchMismatch ty t ->
+    "branches of `"
+      ++ ppTerm t
+      ++ "should all be of type:\n"
+      ++ ppType ty
   NotImplemented what ->
     "not implemented yet -- " ++ what
