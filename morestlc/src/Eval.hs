@@ -114,6 +114,19 @@ subst x s = go
           --    in TmLcase t1' t2' j k t3'
           -- congruence cases, nothing to do here
           -- casos que só propaga/ continua a recursão
+      TmCase t1 matches -> TmCase (go t1) (map substMatch matches)
+        where
+          patternShadows :: Pattern -> Bool
+          patternShadows (PatVar y) = x == y -- redefinicao de var
+          patternShadows (PatPair p1 p2) = patternShadows p1 || patternShadows p2 -- propaga e verifica
+          patternShadows (PatCons p1 p2) = patternShadows p1 || patternShadows p2 -- propaga e verifica
+          patternShadows _ = False
+
+          substMatch (MatchCase pat body) =
+            -- verifica se ocorre shadowing dentro do pattern
+            if patternShadows pat
+              then MatchCase pat body -- shadowing: não altera o corpo
+              else MatchCase pat (go body) -- sem shadowing: propaga a substituição
       TmApp t1 t2 -> TmApp (go t1) (go t2)
       TmIf0 t1 t2 t3 -> TmIf0 (go t1) (go t2) (go t3)
       TmSucc t1 -> TmSucc (go t1)
@@ -265,16 +278,42 @@ eval t@(TmCase t1 matches) = do
   where
     tryMatches :: Term -> [Match] -> Either RuntimeError Term
     tryMatches _ [] = Left (Stuck t) -- Caso base, nenhum pattern casou
-    tryMatches v (crrntMatch@(MatchCase pat body) : otherMatches) =
-      case matchPattern pat v of -- tenta casar o termo com um dos
+    tryMatches v (MatchCase pat bodyTerm : otherMatches) =
+      case (matchPattern pat v) of -- tenta casar o termo com um dos padrões válidos, retorna os bindings se conseguir
+      -- Padrão casou: faz as substituições
+      -- foldr aplica a função `subst` para cada par (x, valor) na lista de bindings.
+      -- o subst lida com os demais tipos de termos, não preciso do Case dentro do subst
         Just bindings ->
-          -- Padrão casou: faz as substituições
-          -- foldr aplica a função `subst` para cada par (x, valor) na lista de bindings.
-          -- o subst lida com os demais tipos de termos, não preciso do Case dentro do subst
-          let boundBody = foldr (\(x, val) currentTerm -> subst x val currentTerm) body bindings
+          let boundBody = foldr (\(x, val) currentTerm -> subst x val currentTerm) bodyTerm bindings
            in eval boundBody
         Nothing ->
           tryMatches v otherMatches -- Padrão não casou com nenhum padrão válidos, tenta o próximo match da lista
+
+    -- função que faz o match dos patterns com o termo passado
+    -- ela retorna uma lista de bindings para fazer a substituicao
+    matchPattern :: Pattern -> Term -> Maybe [(Ident, Term)]
+    matchPattern (PatVar x) v = Just [(x, v)] -- substituicao simples
+
+    -- nada pra substituir
+    matchPattern PatUnit TmUnit = Just []
+    matchPattern PatNil (TmNil _) = Just []
+    matchPattern (PatConst n) (TmConst m) | n == m = Just []
+    --
+    -- (p, p)
+    matchPattern (PatPair p1 p2) (TmPair v1 v2) = do
+      bindings1 <- matchPattern p1 v1 -- fst pode ser "aberta"
+      bindings2 <- matchPattern p2 v2 -- snd pode ser "aberta"
+      return (bindings1 ++ bindings2)
+
+    -- vh:vt => cons p p
+    matchPattern (PatCons p1 p2) (TmCons v1 v2) = do
+      -- tenta casar a cabeça (p1 com v1) e a cauda (p2 com v2)
+      bindings1 <- matchPattern p1 v1 -- head pode ser "aberta"
+      bindings2 <- matchPattern p2 v2 -- tail pode ser "aberta"
+      return (bindings1 ++ bindings2)
+
+    -- nenhuma combinação casou, continua ou falha
+    matchPattern _ _ = Nothing
 
 --   t1 ==> \xf:T1, t     [xf := fix (\xf:T1, t)] t ==> v
 --   -----------------------------------------------------  (ST_FixAbs)
@@ -293,32 +332,6 @@ resolveOperation n1 n2 op =
     OpMult -> TmConst (n1 * n2)
     OpDiv -> TmConst (div n1 n2)
     OpMod -> TmConst (mod n1 n2)
-
--- função que faz o match dos patterns com o termo passado
--- ela retorna uma lista de bindings para fazer a substituicao
-matchPattern :: Pattern -> Term -> Maybe [(Ident, Term)]
-matchPattern (PatVar x) v = Just [(x, v)] -- substituicao simples
-
--- nada pra substituir
-matchPattern PatUnit TmUnit = Just []
-matchPattern PatNil (TmNil _) = Just []
-matchPattern (PatConst n) (TmConst m) | n == m = Just []
---
--- (p, p)
-matchPattern (PatPair p1 p2) (TmPair v1 v2) = do
-  bindings1 <- matchPattern p1 v1 -- fst pode ser "aberta"
-  bindings2 <- matchPattern p2 v2 -- snd pode ser "aberta"
-  return (bindings1 ++ bindings2)
-
--- vh:vt => cons p p
-matchPattern (PatCons p1 p2) (TmCons v1 v2) = do
-  -- tenta casar a cabeça (p1 com v1) e a cauda (p2 com v2)
-  bindings1 <- matchPattern p1 v1 -- head pode ser "aberta"
-  bindings2 <- matchPattern p2 v2 -- tail pode ser "aberta"
-  return (bindings1 ++ bindings2)
-
--- nenhuma combinação casou, continua ou falha
-matchPattern _ _ = Nothing
 
 -- ---------------------------------------------------------------------------
 -- Error messages
