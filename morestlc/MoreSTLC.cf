@@ -74,6 +74,23 @@ OpDiv. BinOp ::= "/" ;
 OpMod. BinOp ::= "%" ;
 
 -- ---------------------------------------------------------------------------
+-- Patterns
+-- ---------------------------------------------------------------------------
+
+PatCons.  Pattern1 ::= Pattern2 "::" Pattern1 ;
+PatPair.  Pattern2 ::= "(" Pattern "," Pattern ")" ;
+PatVar.   Pattern2 ::= Ident ;
+PatConst. Pattern2 ::= Integer ;
+PatNil.   Pattern2 ::= "nil" ;
+PatUnit.  Pattern2 ::= "unit" ;
+
+coercions Pattern 2 ;
+
+
+MatchCase. Match ::= "|" Pattern "=>" Term ; -- associa um padrao a um termo (body)
+separator nonempty Match "" ;
+
+-- ---------------------------------------------------------------------------
 -- Terms  --  Inductive tm
 --
 --   level 0   \x:T, t    let    if0    case           (extend to the right)
@@ -87,8 +104,13 @@ OpMod. BinOp ::= "%" ;
 TmAbs.   Term  ::= "\\" Ident ":" Type "," Term ;      -- tm_abs
 TmLet.   Term  ::= "let" Ident "=" Term "in" Term ;    -- tm_let
 TmIf0.   Term  ::= "if0" Term "then" Term "else" Term ;  -- tm_if0
-TmLcase. Term  ::= "case" Term "of" "|" "nil" "=>" Term "|" Ident "::" Ident "=>" Term ;  -- tm_lcase (list case)
 TmCons.  Term1 ::= Term2 "::" Term1 ;                  -- tm_cons
+-- TmLcase. Term  ::= "case" Term "of" "|" "nil" "=>" Term "|" Ident "::" Ident "=>" Term ;  -- tm_lcase (list case)
+TmCase.  Term  ::= "case" Term "of" [Match] ;
+
+-- Instrui o BNFC a aceitar uma lista contígua de regras Match sem exigir um 
+-- caractere separador explícito entre elas
+
 
 TmBinOp.  Term2 ::= Term3 BinOp Term2 ;                   -- tm_binop
 
